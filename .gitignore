@@ -1,0 +1,5 @@
+# Raw masters stay local. The Freesound sources are 20 MB of 24-bit WAV and
+# nothing serves them — the .mp3s in sources/ are what the module loads.
+# sources/SOURCES.md records each one's Freesound ID and URL, so anyone can
+# re-download them and re-run the build scripts.
+*.wav
