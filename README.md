@@ -89,6 +89,33 @@ seam-free 64-second loop is musically the *weakest* of the six.
 
 ---
 
+## The output stage
+
+Four controls sit after the effects, and they are `_p_` marked like everything
+else — which means **they are written into the script and travel with it**:
+
+    %%bd_p_volume   -40 .. +6 dB
+    %%bd_p_bass     -12 .. +12 dB   (shelf below 250 Hz)
+    %%bd_p_treble   -12 .. +12 dB   (shelf above 3 kHz)
+    %%bd_p_balance   -1 .. +1       (left .. right)
+
+That is the whole reason they exist. A drone is usually played *against*
+something — speech, another module, a recording — and a balance you cannot
+write down has to be found again every time. Saved in the script, a setting
+that worked once can be returned to.
+
+Signal order is `reverb → EQ → pan → volume → limiter → out`. EQ before the
+limiter, so a boost is caught by the ceiling rather than clipping; volume after
+the EQ, so the fader means what it says whatever the tone controls do; the
+limiter last, always, because it is the only thing between grain summing and a
+clipped output.
+
+The spectrum display taps **after** the output stage, so what you see includes
+the tone controls. Bake applies the same four, so a saved `.wav` is the thing
+you balanced.
+
+---
+
 ## Export
 
 **.wav only**, via Bake then Save wav. There is no interchange format for a

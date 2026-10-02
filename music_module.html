@@ -203,6 +203,8 @@
      CSS was simply being overridden.
      Trust the hex on the border line, not this prose: the note has gone
      stale while the colour rotated on in two other files already.
+     2026-10-02n: RED (output stage: volume, bass, treble, balance — all _p_ so
+     a balance against other sound can be written down). Next = green.
      2026-10-02m: BLUE (new default script set by the author: vox pad, pentatonic,
      step_seconds 2, offsetCH2 60, a wet reverb). Next = red.
      2026-10-02l: GREEN (aura_pad_Amin added from Freesound 697998 — short loop
@@ -237,7 +239,7 @@
        which is the one thing a canary must never be. White text because the
        canary colours are dark and .big-btn's near-black label would be
        unreadable on them — and luminance, not hue, has to carry it. */
-    background: #2d7ff9 !important;      /* CANARY — blue (was green) */
+    background: #c0392b !important;      /* CANARY — red (was blue) */
     color: #fff !important;
   }
   .big-btn.stop { background: #e59b9b !important; }
@@ -346,6 +348,18 @@ const STEPPERS = [
   { name: 'chorus_wet',        min: 0,    max: 1,   step: 0.05, fallback: 0.3 },
   { name: 'chorus_depth',      min: 0,    max: 1,   step: 0.05, fallback: 0.4 },
   { name: 'loop',              min: 0,    max: 1,   step: 1,    fallback: 1,    isToggle: true },
+  // ── OUTPUT STAGE (2026-10-02) ──────────────────────────────────────────
+  // Marked _p_ and therefore SAVED IN THE SCRIPT, which is the whole point:
+  // these exist so a drone can be balanced against something else — speech,
+  // another module — and the balance kept. A mix setting that cannot be
+  // written down has to be found again every time.
+  //
+  // dB, not a 0..1 fraction, because dB is the unit the ear works in and the
+  // unit anyone reading the script will expect. 0 means unchanged.
+  { name: 'volume',            min: -40,  max: 6,   step: 0.5,  fallback: 0 },
+  { name: 'bass',              min: -12,  max: 12,  step: 0.5,  fallback: 0 },
+  { name: 'treble',            min: -12,  max: 12,  step: 0.5,  fallback: 0 },
+  { name: 'balance',           min: -1,   max: 1,   step: 0.05, fallback: 0 },
 ];
 
 const SCALES = {
@@ -892,6 +906,7 @@ function grainSizeFor(point, base, fromRun) {
 // octave doubling.
 let grain = null, grain2 = null, ch2Gain = null;
 let chorus = null, vibrato = null, reverb = null, limiter = null, fft = null;
+let eq = null, panner = null, outVol = null;
 let buffer = null, bufferReady = false;
 let storedText = '';
 let params = null;
@@ -900,12 +915,25 @@ let loopTimer = null;
 let lastBake = null;
 
 function buildChain() {
+  // ── THE OUTPUT STAGE SITS LAST, AND THE ORDER IS THE DESIGN ──────────
+  //   ... reverb -> EQ3 -> Panner -> Volume -> Limiter -> destination
+  // EQ before the limiter, so a bass or treble BOOST is caught by the ceiling
+  // rather than clipping; volume after the EQ, so the fader means what it says
+  // whatever the tone controls are doing; limiter last, always, because it is
+  // the only thing standing between grain summing and a clipped output.
   limiter = new Tone.Limiter(-1).toDestination();
-  // The analyser taps the limiter's input, so the display shows what you
-  // hear — after the effects, before the final ceiling.
+  outVol  = new Tone.Volume(0).connect(limiter);
+  panner  = new Tone.Panner(0).connect(outVol);
+  // 250 Hz and 3 kHz rather than EQ3's defaults of 400 and 2500: "bass" that
+  // starts at 400 Hz reaches well into the pads' fundamentals and acts as a
+  // level control instead of a tone control.
+  eq = new Tone.EQ3({ low: 0, mid: 0, high: 0,
+                      lowFrequency: 250, highFrequency: 3000 }).connect(panner);
+  // The analyser taps AFTER the output stage, so the display shows what you
+  // actually hear — tone controls included — and before the final ceiling.
   fft = new Tone.FFT(64);
-  reverb  = new Tone.Reverb({ decay: 4, wet: 0.45 }).connect(limiter);
-  reverb.connect(fft);
+  outVol.connect(fft);
+  reverb  = new Tone.Reverb({ decay: 4, wet: 0.45 }).connect(eq);
   vibrato = new Tone.Vibrato({ frequency: 3, depth: 0.1, type: 'sine' }).connect(reverb);
   chorus  = new Tone.Chorus({ frequency: 1.5, delayTime: 3.5, depth: 0.4, wet: 0.3 }).connect(vibrato);
   chorus.start();
@@ -942,6 +970,10 @@ function applyLiveParams() {
                  vibrato.depth.value     = getStepperValue('vibrato_depth'); }
   if (chorus)  { chorus.wet.value = getStepperValue('chorus_wet');
                  chorus.depth     = getStepperValue('chorus_depth'); }
+  if (eq)      { eq.low.value  = getStepperValue('bass');
+                 eq.high.value = getStepperValue('treble'); }
+  if (panner)  { panner.pan.value = getStepperValue('balance'); }
+  if (outVol)  { outVol.volume.value = getStepperValue('volume'); }
 }
 
 async function loadSample(name) {
@@ -1214,11 +1246,20 @@ bakeBtn.addEventListener('click', async () => {
       // Captured once, like the rest: a render must not change because
       // someone moved a stepper while it was rendering.
       offset2: Math.round(getStepperValue('offsetCH2')),
+      volume: getStepperValue('volume'), bass: getStepperValue('bass'),
+      treble: getStepperValue('treble'), balance: getStepperValue('balance'),
     };
     const tail = Math.max(vals.rDecay, 0.5) + 0.5;
     const rendered = await Tone.Offline(async (ctx) => {
+      // The SAME output stage as the live chain, in the same order. Without it
+      // Save wav would ignore volume, bass, treble and balance entirely, and
+      // the file would not be the thing you balanced.
       const lim = new Tone.Limiter(-1).toDestination();
-      const rev = new Tone.Reverb({ decay: Math.max(0.1, vals.rDecay), wet: vals.rWet }).connect(lim);
+      const vol = new Tone.Volume(vals.volume).connect(lim);
+      const pan = new Tone.Panner(vals.balance).connect(vol);
+      const eq3 = new Tone.EQ3({ low: vals.bass, mid: 0, high: vals.treble,
+                                 lowFrequency: 250, highFrequency: 3000 }).connect(pan);
+      const rev = new Tone.Reverb({ decay: Math.max(0.1, vals.rDecay), wet: vals.rWet }).connect(eq3);
       await rev.ready;
       const vib = new Tone.Vibrato({ frequency: vals.vFreq, depth: vals.vDepth, type: 'sine' }).connect(rev);
       const cho = new Tone.Chorus({ frequency: 1.5, delayTime: 3.5, depth: vals.cDepth, wet: vals.cWet }).connect(vib);
@@ -1353,6 +1394,10 @@ storedText = [
   '%%bd_p_chorus_wet 0.50',
   '%%bd_p_chorus_depth 0.65',
   '%%bd_p_loop true',
+  '%%bd_p_volume 0.00',
+  '%%bd_p_bass 0.00',
+  '%%bd_p_treble 0.00',
+  '%%bd_p_balance 0.00',
   '',
 ].join('\n');
 params = parseScript(storedText);
