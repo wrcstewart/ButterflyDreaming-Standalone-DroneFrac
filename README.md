@@ -145,8 +145,11 @@ That is the entire contract.
 | module → host | `bd_module_log` `{ level, line }` | its console, so a host can see inside the iframe |
 
 There is a fifth, optional in both directions: `bd_ui_config`
-`{ hideControls, hostChrome }`, which lets a host say *I supply the controls
-myself* and *I draw nothing around this iframe*. Both default to BD's own
+`{ hideControls, hostChrome, hostScriptPanel }`, which lets a host say *I supply
+the controls myself*, *I draw nothing around this iframe*, and *I show the
+script with my own copy control, so hide yours*. Three independent assertions,
+deliberately not one: `controls-hidden` used to carry two meanings at once and
+had to be split, and a flag should assert one thing. Both default to BD's own
 behaviour, so a module that ignores the message still works everywhere — but
 this page sends `hostChrome: false`, because BD reserves layout for furniture
 that only BD stamps in, and a standalone that kept the reserve would be giving

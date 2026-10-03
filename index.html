@@ -232,7 +232,12 @@ window.addEventListener('message', (e) => {
     // hideControls stays FALSE: the steppers are wanted here. That is the whole
     // reason these are two settings and not one.
     try { frame.contentWindow.postMessage(
-      { type: 'bd_ui_config', hideControls: false, hostChrome: false }, '*'); } catch (_) {}
+      { type: 'bd_ui_config', hideControls: false, hostChrome: false,
+        // THIS page shows the script and has its own Copy script button, right
+        // beside the text it copies — so the module's own one would be a second
+        // button doing one job, in the worse place. Bake and Save wav stay:
+        // those are the module's and no host can offer them.
+        hostScriptPanel: true }, '*'); } catch (_) {}
     push(pending != null ? pending : script.value);
     pending = null;
     return;
