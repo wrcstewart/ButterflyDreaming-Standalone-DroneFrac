@@ -1,9 +1,9 @@
 music_module.html and sources/ were copied from ButterflyDreaming:
   source : M_DroneFrac/
   samples: 10 .mp3 files, 5.5M
-  commit : 53a6dcf
+  commit : 6cdbc03
   dated  : 2026-10-04
-  taken  : 2026-10-04T14:02Z
+  taken  : 2026-10-04T14:09Z
 
 Refresh with ./sync_from_bd.sh — a copy-down, not a merge.
 Licence and provenance for every sample: sources/SOURCES.md
