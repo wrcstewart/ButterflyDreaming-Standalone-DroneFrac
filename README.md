@@ -187,7 +187,7 @@ directive opens with `[` and closes on a line that is exactly `%%bd_]`.
     %%bd_module bd_M_DroneFrac
     %%bd_p_sample vox_pad_dmin7
     %%bd_axiom X
-    %%bd_rule X: XFYFX+F+YFXFY-F-XFYFX
+    %%bd_rule X: FYFX+F+YFXFY-F-XFYFX
     %%bd_p_iterations 6
     %%bd_angle 90
     %%bd_p_grain_size 0.45
